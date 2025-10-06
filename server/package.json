@@ -1,0 +1,24 @@
+{
+  "name": "mock-ai-server",
+  "version": "1.0.0",
+  "description": "Serveur Node.js simulant une API IA avec tools",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "ai": "^5.0.60",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "ai",
+    "mock",
+    "server",
+    "tools"
+  ],
+  "author": "",
+  "license": "MIT"
+}

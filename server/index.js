@@ -11,16 +11,17 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/conv', async (req, res) => {
-  const { id } = req.query;
+app.get('/api/conv/:id', async (req, res) => {
+  const { id } = req.params;
   if (!conversations[id]) {
     conversations[id] = { messages: [], sockets: {} }
   }
   res.json(conversations[id].messages);
 })
 
-app.post('/api/conv/sync', async (req, res) => {
-  const { id, name } = req.body;
+app.post('/api/conv/:id/sync', async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
   if (!conversations[id]) {
     conversations[id] = { messages: [], sockets: {} }
   }
@@ -41,7 +42,16 @@ app.post('/api/conv/sync', async (req, res) => {
   })
 })
 
-app.post('/api/conv/chat', async (req, res) => {
+app.get('/api/conv/:id/stream', async (req, res) => {
+  const { id } = req.params;
+
+  pipeUIMessageStreamToResponse({
+    response: res,
+    stream: conversations[id].stream
+  })
+})
+
+app.post('/api/conv', async (req, res) => {
   const { id } = req.body;
   // deepEqual(conversations[req.body.id].messages, req.body.messages.slice(0, -1))
   conversations[id].messages = req.body.messages || []
@@ -52,21 +62,23 @@ app.post('/api/conv/chat', async (req, res) => {
     }
   }
 
+  conversations[id].stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      await mock(req, writer.write)
+      if (false) {
+        // node_modules/ai/dist/index.mjs:3788 add "state.message.parts = [];"
+        res.write('data: [DONE]\n\n')
+        await mock(req, writer.write)
+      }
+    },
+    // onFinish: ({ messages, isContinuation, responseMessage }) => {
+    //   console.log('Stream finished with messages:', messages, isContinuation, responseMessage);
+    // },
+  })
+
   pipeUIMessageStreamToResponse({
     response: res,
-    stream: createUIMessageStream({
-      execute: async ({ writer }) => {
-        await mock(req, writer.write)
-        if (false) {
-          // node_modules/ai/dist/index.mjs:3788 add "state.message.parts = [];"
-          res.write('data: [DONE]\n\n')
-          await mock(req, writer.write)
-        }
-      },
-      // onFinish: ({ messages, isContinuation, responseMessage }) => {
-      //   console.log('Stream finished with messages:', messages, isContinuation, responseMessage);
-      // },
-    }),
+    stream: conversations[id].stream,
     consumeSseStream: async (options) => {
       options.stream = options.stream.pipeThrough(
         new TransformStream({

@@ -5,7 +5,7 @@ import { Message } from "./Message";
 import { mockTransport } from "./api/mockTransport";
 
 const api = 'http://localhost:3001/api/conv'
-const id = location.hash.replace('#', '')
+const id = location.hash.replace('#', '') || 'default'
 const interactiveToolTypes = ['askForConfirmation'].map(x => `tool-${x}`)
 const serverToolTypes = ['getWeatherInformation'].map(x => `tool-${x}`)
 
@@ -16,7 +16,7 @@ const useMessages = () => {
 
   useEffect(
     () => {
-      fetch(api + '/sync', {
+      fetch(`${api}/${id}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, name: window.name })
@@ -33,7 +33,7 @@ const useMessages = () => {
   )
 
   useEffect(() => {
-    fetch(api + `?id=${id}`)
+    fetch(`${api}/${id}`)
       .then(res => res.json())
       .then(data => {
         const isStreaming = data.at(-1)?.parts.some(
@@ -67,7 +67,7 @@ const ChatWrapper = ({ initialMessages, isStreaming }) => {
   const { messages, setMessages, status, error, stop, sendMessage, addToolResult, resumeStream } = useChat({
     messages: initialMessages,
     transport: location.hash.startsWith('#mock') ? mockTransport : new DefaultChatTransport({
-      api: api + '/chat',
+      api,
       body: { name: window.name },
     }),
     sendAutomaticallyWhen: ({ messages }) => lastAssistantMessageIsCompleteWithToolCalls({ messages }) && !serverToolTypes.includes(messages.at(-1).parts.at(-1).type),

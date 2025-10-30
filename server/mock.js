@@ -76,8 +76,7 @@ function shouldTriggerToolCall(userMessage) {
 
 let responseIndex = 0;
 
-export default async (req, write) => {
-  const { messages } = req.body;
+export default async (messages, write) => {
   const lastMessage = messages[messages.length - 1];
   const userMessage = lastMessage?.parts?.find(part => part.type === 'text')?.text || '';
 

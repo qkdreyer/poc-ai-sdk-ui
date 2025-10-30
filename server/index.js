@@ -1,108 +1,63 @@
-import { deepEqual } from 'node:assert'
-import express from 'express';
-import cors from 'cors';
-import { pipeUIMessageStreamToResponse, createUIMessageStream, readUIMessageStream } from 'ai';
-import mock from './mock.js';
+import { WebSocketServer } from 'ws'
+import { createUIMessageStream, readUIMessageStream } from 'ai'
+import mock from './mock.js'
 
-const app = express();
-const conversations = {}
-const PORT = 3001;
-
-app.use(cors());
-app.use(express.json());
-
-app.get('/api/conv/:id', async (req, res) => {
-  const { id } = req.params;
-  if (!conversations[id]) {
-    conversations[id] = { messages: [], sockets: {} }
+const wss = new WebSocketServer({ port: 3001 })
+wss.conversations = new Map()
+wss.on('connection', (ws, { url }) => {
+  const token = new URLSearchParams(url.substring(2)).get('token')
+  if (!wss.conversations.has(token)) {
+    wss.conversations.set(token, { clients: [], uiMessages: [] })
   }
-  res.json(conversations[id].messages);
-})
+  const conversation = wss.conversations.get(token)
+  conversation.clients.push(ws)
+  console.log(`Conversation ${token} (${conversation.clients.length} clients)`)
 
-app.post('/api/conv/:id/sync', async (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body;
-  if (!conversations[id]) {
-    conversations[id] = { messages: [], sockets: {} }
+  if (conversation.uiMessages.length > 0) {
+    ws.send(JSON.stringify({ trigger: 'init-messages', messages: conversation.uiMessages }))
   }
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    'Transfer-Encoding': 'chunked',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
-  res.flushHeaders();
 
-  conversations[id].sockets[name] = res
-  res.on('error', () => {
-    delete conversations[id].sockets[name]
-  })
-  res.on('end', () => {
-    delete conversations[id].sockets[name]
-  })
-})
-
-app.get('/api/conv/:id/stream', async (req, res) => {
-  const { id } = req.params;
-
-  pipeUIMessageStreamToResponse({
-    response: res,
-    stream: conversations[id].stream
-  })
-})
-
-app.post('/api/conv', async (req, res) => {
-  const { id } = req.body;
-  // deepEqual(conversations[req.body.id].messages, req.body.messages.slice(0, -1))
-  conversations[id].messages = req.body.messages || []
-
-  for (const [name, socket] of Object.entries(conversations[id].sockets)) {
-    if (name !== req.body.name) {
-      socket.write('data: ping\n\n')
+  ws.on('message', async message => {
+    if (message.length === 0) {
+      ws.send(JSON.stringify({ trigger: 'init-messages', messages: conversation.uiMessages }))
+      return
     }
-  }
 
-  conversations[id].stream = createUIMessageStream({
-    execute: async ({ writer }) => {
-      await mock(req, writer.write)
-      if (false) {
-        // node_modules/ai/dist/index.mjs:3788 add "state.message.parts = [];"
-        res.write('data: [DONE]\n\n')
-        await mock(req, writer.write)
+    const { messages, trigger, id } = JSON.parse(message)
+    console.log(`Conversation ${token} message: ${JSON.stringify(messages.at(-1).parts.at(0))}`)
+
+    conversation.uiMessages = messages
+    conversation.clients.forEach(client => {
+      if (client !== ws) {
+        client.send(JSON.stringify({ message: messages.at(-1), trigger, id }))
       }
-    },
-    // onFinish: ({ messages, isContinuation, responseMessage }) => {
-    //   console.log('Stream finished with messages:', messages, isContinuation, responseMessage);
-    // },
-  })
+    })
 
-  pipeUIMessageStreamToResponse({
-    response: res,
-    stream: conversations[id].stream,
-    consumeSseStream: async (options) => {
-      options.stream = options.stream.pipeThrough(
-        new TransformStream({
-          async transform(chunk, controller) {
-            const data = chunk.replace('data:', '').trim()
-            if (data !== '[DONE]') {
-              controller.enqueue(JSON.parse(data));
-            }
-          }
-        })
-      )
-      const { messages } = conversations[id]
-      for await (const uiMessage of readUIMessageStream(options)) {
-        if (messages.at(-1).id !== uiMessage.id) {
-          messages.push(uiMessage)
-        } else {
-          messages[messages.length - 1] = uiMessage
+    const [clientStream, uiMessageStream] = createUIMessageStream({ execute: ({ writer: { write } }) => mock(messages, write) }).tee()
+    await Promise.all([
+      (async () => {
+        for await (const chunk of clientStream) {
+          conversation.clients.forEach(client => {
+            client.send(JSON.stringify({ ...chunk }))
+          })
         }
-      }
-    },
+      })(),
+      (async () => {
+        const { uiMessages } = conversation
+        for await (const uiMessage of readUIMessageStream({ stream: uiMessageStream })) {
+          if (uiMessages.at(-1).id !== uiMessage.id) {
+            uiMessages.push(uiMessage)
+          } else {
+            uiMessages[uiMessages.length - 1] = uiMessage
+          }
+        }
+      })()
+    ])
   })
-});
 
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-  console.log(`📡 API disponible sur http://localhost:${PORT}/api/chat`);
-});
+  ws.on('close', () => {
+    conversation.clients = conversation.clients.filter(client => client !== ws)
+  })
+})
+
+console.log(`🚀 Serveur WebSocket démarré sur ws://localhost:${wss.options.port}`)

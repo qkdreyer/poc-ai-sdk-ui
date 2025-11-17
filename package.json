@@ -12,7 +12,7 @@
     "start:all": "npm run server & npm run dev"
   },
   "dependencies": {
-    "@ai-sdk/react": "^2.0.59",
+    "@ai-sdk/react": "^3.0.0-beta.93",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

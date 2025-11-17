@@ -17,9 +17,10 @@ export class SubmitMessageEvent extends CustomEvent {
  * instead of HTTP POST requests. It maintains a persistent connection to the server.
  */
 export class WebSocketChatTransport extends EventTarget {
-  constructor({ url = `ws://localhost:3001?token=${location.hash.replace('#', '')}`, reconnectDelay = 1000 } = {}) {
+  constructor({ id, reconnectDelay = 1000 } = {}) {
     super()
-    this.url = url
+    this.url = `${import.meta.env.VITE_WEBSOCKET_URL}?token=${id + (localStorage.getItem('reset') ? '&reset' : '')}`
+    localStorage.removeItem('reset')
     this.reconnectDelay = reconnectDelay
     this.ws = null
     this.messageQueue = []
@@ -62,7 +63,7 @@ export class WebSocketChatTransport extends EventTarget {
           const data = JSON.parse(event.data)
           const { trigger } = data
           if (trigger === 'init-messages') {
-            this.dispatchEvent(new InitMessagesEvent(data.messages))
+            this.dispatchEvent(new InitMessagesEvent(data))
             return
           }
           if (trigger === 'submit-message' && data.message.parts.at(0).type === 'text') {
@@ -82,9 +83,7 @@ export class WebSocketChatTransport extends EventTarget {
   handleMessage(data) {
     const { type, error } = data
     if (!this.streamController) {
-      if (this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(Uint8Array.of())
-      }
+      this.synchronize()
       return
     }
     this.streamController.enqueue(data)
@@ -105,14 +104,28 @@ export class WebSocketChatTransport extends EventTarget {
    *
    * Required by ChatTransport interface
    */
-  async sendMessages({ chatId, messages, trigger, abortSignal, metadata: { send } = {} }) {
+  async sendMessages({ chatId, messages, trigger, abortSignal, body, metadata: { read, sync } = {} }) {
+    // teardown hack hiding previous parts within same user message
+    if (messages.at(-1)._parts) {
+      messages.at(-1).parts = messages.at(-1)._parts
+      delete messages.at(-1)._parts
+    }
     await this.ensureConnection()
     return new ReadableStream({
       start: (controller) => {
+        if (sync) {
+          controller.enqueue = this.synchronize.bind(this)
+          const close = controller.close
+          controller.close = () => {
+            close.call(controller)
+            controller.enqueue()
+          }
+        }
+
         // Store the stream controller
         this.streamController = controller
 
-        if (!send) {
+        if (read || sync) {
           return
         }
 
@@ -121,6 +134,7 @@ export class WebSocketChatTransport extends EventTarget {
           messages,
           trigger,
           id: chatId,
+          ...body,
         }
 
         // Send via WebSocket
@@ -169,5 +183,10 @@ export class WebSocketChatTransport extends EventTarget {
     }
     this.streamController = null
     this.messageQueue = []
+  }
+  synchronize() {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(Uint8Array.of())
+    }
   }
 }

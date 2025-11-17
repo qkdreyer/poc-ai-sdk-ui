@@ -1,0 +1,48 @@
+const render = (data, prefix = '') => data.parts.map((part, index) => {
+  if (part.type === 'step-start') {
+    return index > 0 ? (
+      <div key={prefix + index.toString()} className="text-gray-500">
+        <hr className="my-2 border-gray-300" />
+      </div>
+    ) : null;
+  }
+  if (part.type === 'text') {
+    return <div key={prefix + index.toString()}>{part.text}</div>;
+  }
+  if (part.type?.startsWith('tool-')) {
+    switch (part.state) {
+      case 'input-streaming':
+      case 'input-available':
+        return (
+          <pre key={part.toolCallId}>
+            <>Calling {part.type}</>
+            {part.input && <>with&nbsp;{JSON.stringify(part.input, null, 2)}</>}
+          </pre>
+        );
+      case 'output-available':
+        return (
+          <pre key={part.toolCallId}>
+            {render(part.output, `${index}-`)}
+          </pre>
+        );
+      case 'output-error':
+        return <div key={part.toolCallId}>Error: {part.errorText}</div>;
+    }
+  }
+  if (part.type === 'reasoning')
+    return <div key={prefix + index.toString()}><i>{part.text}</i></div>;
+  return <div key={prefix + index.toString()}>({part.type}) {part.text}</div>;
+})
+
+export const Message = ({ message }) => <div className={`message.${message.role}`} style={{
+  marginBottom: 12,
+  padding: 8,
+  borderRadius: 8
+}}>
+  <strong style={{ color: message.role === 'user' ? '#0066cc' : '#cc6600' }}>
+    {message.role === 'user' ? '👤 Utilisateur' : '🤖 Assistant'}:
+  </strong>
+  <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}>
+    {render(message)}
+  </div>
+</div>

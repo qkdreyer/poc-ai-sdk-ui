@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { useState } from 'react'
 import './main.css'
 import { Chat } from './chat';
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 const useToken = () => {
   const [value, setValue] = useState(location.hash.replace('#', ''))
@@ -107,6 +108,7 @@ const Root = () => {
   const [subAgentPrompt, handleSubAgentPromptChange] = useSubAgentPrompt()
   return (
     <>
+      <SpeedInsights />
       <div style={{ display: 'flex', justifyContent: 'center', padding: 12, gap: 8 }}>
         <input id="token" data-form-type="other" value={token} type="text" placeholder="Token" onChange={handleTokenChange} />
         <select value={model} onChange={handleModelChange}>

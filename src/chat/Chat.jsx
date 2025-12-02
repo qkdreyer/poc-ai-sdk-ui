@@ -95,10 +95,11 @@ export const Chat = ({ id, body }) => {
           value={input}
           onChange={e => setInput(e.target.value)}
           disabled={status !== 'ready'}
-          placeholder='Écris un message…'
+          placeholder="Écris un message…"
           style={{ width: '80%', padding: 8 }}
+          data-form-type="other"
         />
-        <button type='submit' disabled={status !== 'ready'}>Envoyer</button>
+        <button type="submit" disabled={status !== 'ready'}>Envoyer</button>
         {status === 'streaming' && <button type="button" onClick={stop}>Stop</button>}
         {status === 'error' && <button type="button" onClick={resumeStream}>Reprendre</button>}
       </form>

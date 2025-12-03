@@ -1,4 +1,4 @@
-const render = (data, prefix = '') => data.parts.map((part, index) => {
+const render = (part, index, _list, prefix = '') => {
   if (part.type === 'step-start') {
     return index > 0 ? (
       <div key={prefix + index.toString()} className="text-gray-500">
@@ -8,6 +8,9 @@ const render = (data, prefix = '') => data.parts.map((part, index) => {
   }
   if (part.type === 'text') {
     return <div key={prefix + index.toString()}>{part.text}</div>;
+  }
+  if (part.type === 'image') {
+    return <img key={prefix + index.toString()} src={`data:${part.mimeType};base64,${part.data}`} />;
   }
   if (part.type?.startsWith('tool-')) {
     switch (part.state) {
@@ -22,7 +25,7 @@ const render = (data, prefix = '') => data.parts.map((part, index) => {
       case 'output-available':
         return (
           <pre key={part.toolCallId}>
-            {render(part.output, `${index}-`)}
+            {(part.type === 'tool-sub_agent' ? part.output.parts : Array.isArray(part.output) ? part.output : [part.output]).map((part, index) => render(part, index, _list, `${index}-`))}
           </pre>
         );
       case 'output-error':
@@ -32,7 +35,7 @@ const render = (data, prefix = '') => data.parts.map((part, index) => {
   if (part.type === 'reasoning')
     return <div key={prefix + index.toString()}><i>{part.text}</i></div>;
   return <div key={prefix + index.toString()}>({part.type}) {part.text}</div>;
-})
+}
 
 export const Message = ({ message }) => <div className={`message.${message.role}`} style={{
   marginBottom: 12,
@@ -43,6 +46,6 @@ export const Message = ({ message }) => <div className={`message.${message.role}
     {message.role === 'user' ? '👤 Utilisateur' : '🤖 Assistant'}:
   </strong>
   <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}>
-    {render(message)}
+    {message.parts.map(render)}
   </div>
 </div>

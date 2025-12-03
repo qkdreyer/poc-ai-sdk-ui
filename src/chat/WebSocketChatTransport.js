@@ -17,13 +17,12 @@ export class SubmitMessageEvent extends CustomEvent {
  * instead of HTTP POST requests. It maintains a persistent connection to the server.
  */
 export class WebSocketChatTransport extends EventTarget {
-  constructor({ id, reconnectDelay = 1000 } = {}) {
+  constructor({ id, url, token, reconnectDelay = 1000 } = {}) {
     super()
-    this.url = `${import.meta.env.VITE_WEBSOCKET_URL}?token=${id + (localStorage.getItem('reset') ? '&reset' : '')}`
-    localStorage.removeItem('reset')
+    this.url = `${url.startsWith('localhost') ? 'ws' : 'wss'}://${url}?id=${id}`
+    this.token = token
     this.reconnectDelay = reconnectDelay
     this.ws = null
-    this.messageQueue = []
     this.streamController = null
     this.ensureConnection()
   }
@@ -38,25 +37,17 @@ export class WebSocketChatTransport extends EventTarget {
       this.ws = new WebSocket(this.url)
       this.ws.onopen = () => {
         console.log('🔌 WebSocket connected')
-        // Send queued messages
-        while (this.messageQueue.length > 0) {
-          const message = this.messageQueue.shift()
-          this.ws.send(JSON.stringify(message))
-        }
         resolve()
       }
       this.ws.onerror = (error) => {
         console.error('🔴 WebSocket error:', error)
         reject(error)
       }
-      this.ws.onclose = () => {
-        console.log('🔌 WebSocket closed')
-        // Attempt reconnection after delay
-        setTimeout(() => {
-          if (this.streamController) {
-            this.ensureConnection().catch(console.error)
-          }
-        }, this.reconnectDelay)
+      this.ws.onclose = ({ code }) => {
+        console.log('🔌 WebSocket closed', code)
+        if (code !== 4401) {
+          setTimeout(() => this.ensureConnection().catch(console.error), this.reconnectDelay)
+        }
       }
       this.ws.onmessage = (event) => {
         try {
@@ -111,6 +102,7 @@ export class WebSocketChatTransport extends EventTarget {
       delete messages.at(-1)._parts
     }
     await this.ensureConnection()
+    const token = this.token
     return new ReadableStream({
       start: (controller) => {
         if (sync) {
@@ -125,35 +117,30 @@ export class WebSocketChatTransport extends EventTarget {
         // Store the stream controller
         this.streamController = controller
 
-        if (read || sync) {
+        if (read || sync) {
           return
         }
 
         // Prepare the message to send
         const message = {
-          messages,
+          message: messages.at(-1),
           trigger,
-          id: chatId,
           ...body,
         }
 
-        // Send via WebSocket
-        if (this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify(message))
-        } else {
-          // Queue the message if connection is not ready
-          this.messageQueue.push(message)
-        }
+        const formData = new FormData
+        formData.append('payload', JSON.stringify(message))
+        fetch(`${import.meta.env.VITE_API_BASE}/api/conversation/${chatId}/send`, {
+          method: 'POST',
+          headers: {
+            Authorization: token
+          },
+          body: formData
+        })
+
         // Handle abort signal
         if (abortSignal) {
           abortSignal.addEventListener('abort', () => {
-            // Send abort message to server
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-              this.ws.send(JSON.stringify({
-                type: 'abort',
-                chatId
-              }))
-            }
             controller.error(new DOMException('Aborted', 'AbortError'))
             delete this.streamController
           })
@@ -182,7 +169,6 @@ export class WebSocketChatTransport extends EventTarget {
       this.ws = null
     }
     this.streamController = null
-    this.messageQueue = []
   }
   synchronize() {
     if (this.ws.readyState === WebSocket.OPEN) {

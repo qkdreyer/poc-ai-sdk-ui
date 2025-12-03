@@ -3,6 +3,7 @@ import { useState } from 'react'
 import './main.css'
 import { Chat } from './chat';
 import { SpeedInsights } from '@vercel/speed-insights/react'
+import useSWR from 'swr'
 
 const useToken = () => {
   const [value, setValue] = useState(location.hash.replace('#', ''))
@@ -14,9 +15,10 @@ const useToken = () => {
 }
 
 const useModel = () => {
-  const [value, setValue] = useState('magistral-medium-latest')
+  const [value, setValue] = useState(localStorage.getItem('model') || 'mistral/magistral-medium-latest')
   const handleChange = ({ target: { value } }) => {
     setValue(value)
+    localStorage.setItem('model', value)
   }
   return [value, handleChange]
 }
@@ -101,29 +103,84 @@ Tu as accès aux mêmes outils que le Supervisor, **mais tu ne peux pas créer d
   return [value, handleChange]
 }
 
+const fetcher = token => url => fetch(url, {
+  headers: {
+    Authorization: token
+  }
+}).then(r => r.json())
+
+const callAPI = (token, path, init) => fetch(import.meta.env.VITE_API_BASE + path, {
+  ...init,
+  headers: {
+    Authorization: token
+  },
+}).then(result => result.json())
+
+const useAPI = path => {
+  const [token] = useToken()
+  const { data, mutate } = useSWR(import.meta.env.VITE_API_BASE + path, fetcher(token), {
+    revalidateOnFocus: false
+  })
+  return [data, mutate]
+}
+
 const Root = () => {
   const [token, handleTokenChange] = useToken()
   const [model, handleModelChange] = useModel()
   const [supervisorAgentPrompt, handleSupervisorAgentPromptChange] = useSupervisorAgentPrompt()
   const [subAgentPrompt, handleSubAgentPromptChange] = useSubAgentPrompt()
+  const [conversation, setConversation] = useState()
+  const [conversations, mutate] = useAPI('/api/conversation')
+
+  const createConversation = () => callAPI(token, '/api/conversation', { method: 'POST' }).then(() => mutate())
+  const deleteConversation = conversationId => () => callAPI(token, `/api/conversation/${conversationId}`, { method: 'DELETE' })
+  const joinConversation = conversationId => async () => {
+    const join = await callAPI(token, `/api/conversation/${conversationId}/join`)
+    if (join.result.code !== 200)
+      return
+
+    let request = null
+    do {
+      request = await callAPI(token, `/api/conversation/${conversationId}/request/${join.data.conversationRequestId}`)
+      if (!request || ![200, 408].includes(request.result.code))
+        return
+    } while (request.result.code === 408 && await new Promise(resolve => setTimeout(() => resolve(true), 100)))
+
+    const { data: { mimicusIp } } = request
+    setConversation({ conversationId, mimicusIp })
+  }
+
   return (
     <>
       <SpeedInsights />
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 12, gap: 8 }}>
-        <input id="token" data-form-type="other" value={token} type="text" placeholder="Token" onChange={handleTokenChange} />
-        <select value={model} onChange={handleModelChange}>
-          <option value="claude-sonnet-4-5">🇺🇸 Anthropic (Claude Sonnet 4.5)</option>
-          <option value="magistral-medium-latest">🇫🇷 Mistral AI (Magistral Medium)</option>
-        </select>
-        <button onClick={() => localStorage.setItem('reset', 1) || location.reload()} type="button" style={{ flex: 1, background: '#0d6efd', color: '#fff', cursor: 'pointer' }}>
-          Reset
-        </button>
+      <div style={{ display: 'flex' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', padding: 12, gap: 8, borderRight: '1px solid gray' }}>
+          <input id="token" data-form-type="other" value={token} type="text" placeholder="Token" onChange={handleTokenChange} />
+          <div onClick={createConversation}>Créer</div>
+          <hr width="100" />
+          {conversations && conversations.data?.map(({ id, name }) => <div key={id} style={{ display: 'flex', alignItems: 'center' }}>
+            <div onClick={joinConversation(id)}>{name}</div>
+            <button style={{ padding: '0px 8px', marginLeft: 3 }} onClick={deleteConversation(id)}>X</button>
+          </div>)}
+        </div>
+        {conversation && <>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={{ display: 'flex', padding: 12, gap: 8 }}>
+              <select value={model} onChange={handleModelChange}>
+                <option value="anthropic/claude-sonnet-4-5">🇺🇸 Anthropic (Claude Sonnet 4.5)</option>
+                <option value="mistral/magistral-medium-latest">🇫🇷 Mistral AI (Magistral Medium)</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', padding: 12, gap: 8 }}>
+              <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supervisorAgentPrompt} onChange={handleSupervisorAgentPromptChange} style={{ width: '100%' }}/>
+              <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subAgentPrompt} onChange={handleSubAgentPromptChange} style={{ width: '100%' }}/>
+            </div>
+            <div style={{ padding: 8 }}>
+              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ model, supervisorAgentPrompt, subAgentPrompt }} />
+            </div>
+          </div>
+        </>}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 12, gap: 8 }}>
-        <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supervisorAgentPrompt} onChange={handleSupervisorAgentPromptChange} style={{ width: '100%' }}/>
-        <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subAgentPrompt} onChange={handleSubAgentPromptChange} style={{ width: '100%' }}/>
-      </div>
-      <Chat id={token} body={{ model, supervisorAgentPrompt, subAgentPrompt }} />
     </>
   )
 }

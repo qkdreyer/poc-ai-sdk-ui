@@ -74,9 +74,9 @@ export const Chat = ({ id, url, token, body }) => {
     []
   )
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  // useEffect(() => {
+  //   scrollToBottom()
+  // }, [messages])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

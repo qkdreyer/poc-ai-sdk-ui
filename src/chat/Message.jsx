@@ -25,6 +25,8 @@ const render = (part, index, _list, prefix = '') => {
       case 'output-available':
         return (
           <pre key={part.toolCallId}>
+            <>Called {part.type}</>
+            {part.input && <>with&nbsp;{JSON.stringify(part.input, null, 2)}</>}
             {(part.type === 'tool-sub_agent' ? part.output.parts : Array.isArray(part.output) ? part.output : [part.output]).map((part, index) => render(part, index, _list, `${index}-`))}
           </pre>
         );

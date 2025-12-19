@@ -147,7 +147,7 @@ const Root = () => {
     } while (request.result.code === 408 && await new Promise(resolve => setTimeout(() => resolve(true), 100)))
 
     const { data: { mimicusIp } } = request
-    setConversation({ conversationId, mimicusIp })
+    setConversation({ conversationId, mimicusIp: location.hostname === 'localhost' ? 'localhost:3001' : mimicusIp })
   }
 
   return (
@@ -156,7 +156,7 @@ const Root = () => {
       <div style={{ display: 'flex' }}>
         <div style={{ display: 'flex', flexDirection: 'column', padding: 12, gap: 8, borderRight: '1px solid gray' }}>
           <input id="token" data-form-type="other" value={token} type="text" placeholder="Token" onChange={handleTokenChange} />
-          <div onClick={createConversation}>Créer</div>
+          <button onClick={createConversation}>Créer</button>
           <hr width="100" />
           {conversations && conversations.data?.map(({ id, name }) => <div key={id} style={{ display: 'flex', alignItems: 'center' }}>
             <div onClick={joinConversation(id)}>{name}</div>
@@ -169,6 +169,9 @@ const Root = () => {
               <select value={model} onChange={handleModelChange}>
                 <option value="anthropic/claude-sonnet-4-5">🇺🇸 Anthropic (Claude Sonnet 4.5)</option>
                 <option value="mistral/magistral-medium-latest">🇫🇷 Mistral AI (Magistral Medium)</option>
+                <option value="nvidia/moonshotai/kimi-k2-thinking">🇨🇳 Moonshot AI (Kimi K2 Thinking) [NVIDIA]</option>
+                <option value="nvidia/deepseek-ai/deepseek-v3.2">🇨🇳 Deepseek AI (Deepseek v3.2) [NVIDIA]</option>
+                <option value="nvidia/mistralai/mistral-large-3-675b-instruct-2512">🇫🇷 Mistral AI (Mistral Large 675B) [NVIDIA]</option>
               </select>
             </div>
             <div style={{ display: 'flex', padding: 12, gap: 8 }}>

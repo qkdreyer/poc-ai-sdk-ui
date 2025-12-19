@@ -95,8 +95,8 @@ export const Chat = ({ id, url, token, body }) => {
 
       {error && <div style={{ color: 'red' }}>
         {String(error)}
-        {error.stack}
       </div>}
+      {error && console.error(error.stack)}
 
       <form onSubmit={handleSubmit}>
         <input

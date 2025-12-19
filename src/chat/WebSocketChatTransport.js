@@ -158,6 +158,7 @@ export class WebSocketChatTransport extends EventTarget {
    * Required by ChatTransport interface
    */
   async reconnectToStream() {
+    // TODO: Implement reconnection logic
     throw new Error('Not implemented')
   }
   /**

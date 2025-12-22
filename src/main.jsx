@@ -23,16 +23,16 @@ const useSupvModel = () => {
   return [value, handleChange]
 }
 
-const useSubAgentModel = () => {
-  const [value, setValue] = useState(localStorage.getItem('subAgentModel') || 'scaleway/qwen3-235b-a22b-instruct-2507')
+const useSubModel = () => {
+  const [value, setValue] = useState(localStorage.getItem('subModel') || 'scaleway/qwen3-235b-a22b-instruct-2507')
   const handleChange = ({ target: { value } }) => {
     setValue(value)
-    localStorage.setItem('subAgentModel', value)
+    localStorage.setItem('subModel', value)
   }
   return [value, handleChange]
 }
 
-const useSupervisorAgentPrompt = () => {
+const useSupvInstruction = () => {
   const [value, setValue] = useState(localStorage.getItem('supvInstructions') || `Tu es **Supervisor**, un Agent IA de niveau orchestration.
 Ton domaine : diagnostiquer les pannes sur une plateforme RMM (Remote Monitoring & Management) : disque plein, CPU à 100 %, machine lente, etc.
 Tu disposes des mêmes outils que les sub-agents (observation de métriques, requêtes système, recherches web, etc.) **et** du droit de lancer d'autres agents IA ("sub_agents").
@@ -79,8 +79,8 @@ Produire :
   return [value, handleChange]
 }
 
-const useSubAgentPrompt = () => {
-  const [value, setValue] = useState(localStorage.getItem('subAgentInstructions') || `Tu es **Sub_Agent**, un Agent IA spécialisé, appelé par un Supervisor pour résoudre une sous-tâche précise dans l'analyse d'une panne RMM.
+const useSubInstructions = () => {
+  const [value, setValue] = useState(localStorage.getItem('subInstructions') || `Tu es **Sub_Agent**, un Agent IA spécialisé, appelé par un Supervisor pour résoudre une sous-tâche précise dans l'analyse d'une panne RMM.
 Tu as accès aux mêmes outils que le Supervisor, **mais tu ne peux pas créer d'autres agents** ; concentre-toi sur TA sous-tâche.
 
 **Objectif**
@@ -109,7 +109,7 @@ Tu as accès aux mêmes outils que le Supervisor, **mais tu ne peux pas créer d
 * Le Supervisor intégrera directement ton contenu, donc évite toute redondance ("comme demandé", "je reste à disposition", etc.).`)
   const handleChange = ({ target: { value } }) => {
     setValue(value)
-    localStorage.setItem('subAgentInstructions', value)
+    localStorage.setItem('subInstructions', value)
   }
   return [value, handleChange]
 }
@@ -138,14 +138,14 @@ const useAPI = path => {
 const Root = () => {
   const [token, handleTokenChange] = useToken()
   const [supvModel, handleSupvModelChange] = useSupvModel()
-  const [subAgentModel, handleSubAgentModelChange] = useSubAgentModel()
-  const [supervisorAgentPrompt, handleSupervisorAgentPromptChange] = useSupervisorAgentPrompt()
-  const [subAgentPrompt, handleSubAgentPromptChange] = useSubAgentPrompt()
+  const [subModel, handleSubModelChange] = useSubModel()
+  const [supvInstruction, handleSupvInstructionChange] = useSupvInstruction()
+  const [subInstructions, handleSubInstructionsChange] = useSubInstructions()
   const [conversation, setConversation] = useState()
   const [conversations, mutate] = useAPI('/api/conversation')
 
   const createConversation = () => callAPI(token, '/api/conversation', { method: 'POST' }).then(() => mutate())
-  const deleteConversation = conversationId => () => callAPI(token, `/api/conversation/${conversationId}`, { method: 'DELETE' })
+  const deleteConversation = conversationId => () => callAPI(token, `/api/conversation/${conversationId}`, { method: 'DELETE' }).then(() => mutate())
   const joinConversation = conversationId => async () => {
     const join = await callAPI(token, `/api/conversation/${conversationId}/join`)
     if (join.result.code !== 200)
@@ -181,25 +181,26 @@ const Root = () => {
               <select value={supvModel} onChange={handleSupvModelChange}>
                 <option value="anthropic/claude-sonnet-4-5">🇺🇸 Anthropic (Claude Sonnet 4.5)</option>
                 <option value="mistral/magistral-medium-latest">🇫🇷 Mistral AI (Magistral Medium)</option>
+                <option value="scaleway/qwen3-235b-a22b-instruct-2507">🇨🇳 Qwen (Qwen 3) [SCALEWAY]</option>
                 <option value="nvidia/moonshotai/kimi-k2-thinking">🇨🇳 Moonshot AI (Kimi K2 Thinking) [NVIDIA]</option>
                 <option value="nvidia/deepseek-ai/deepseek-v3.2">🇨🇳 Deepseek AI (Deepseek v3.2) [NVIDIA]</option>
                 <option value="nvidia/mistralai/mistral-large-3-675b-instruct-2512">🇫🇷 Mistral AI (Mistral Large 675B) [NVIDIA]</option>
               </select>
-              <select value={subAgentModel} onChange={handleSubAgentModelChange}>
-                <option value="scaleway/qwen3-235b-a22b-instruct-2507">🇨🇳 Qwen (Qwen 3) [SCALEWAY]</option>
+              <select value={subModel} onChange={handleSubModelChange}>
                 <option value="anthropic/claude-sonnet-4-5">🇺🇸 Anthropic (Claude Sonnet 4.5)</option>
                 <option value="mistral/magistral-medium-latest">🇫🇷 Mistral AI (Magistral Medium)</option>
+                <option value="scaleway/qwen3-235b-a22b-instruct-2507">🇨🇳 Qwen (Qwen 3) [SCALEWAY]</option>
                 <option value="nvidia/moonshotai/kimi-k2-thinking">🇨🇳 Moonshot AI (Kimi K2 Thinking) [NVIDIA]</option>
                 <option value="nvidia/deepseek-ai/deepseek-v3.2">🇨🇳 Deepseek AI (Deepseek v3.2) [NVIDIA]</option>
                 <option value="nvidia/mistralai/mistral-large-3-675b-instruct-2512">🇫🇷 Mistral AI (Mistral Large 675B) [NVIDIA]</option>
               </select>
             </div>
             <div style={{ display: 'flex', padding: 12, gap: 8 }}>
-              <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supervisorAgentPrompt} onChange={handleSupervisorAgentPromptChange} style={{ width: '100%' }}/>
-              <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subAgentPrompt} onChange={handleSubAgentPromptChange} style={{ width: '100%' }}/>
+              <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supvInstruction} onChange={handleSupvInstructionChange} style={{ width: '100%' }}/>
+              <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subInstructions} onChange={handleSubInstructionsChange} style={{ width: '100%' }}/>
             </div>
             <div style={{ padding: 8 }}>
-              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ model: supvModel, subAgentModel, supervisorAgentPrompt, subAgentPrompt }} />
+              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ supvModel, subModel, supvInstruction, subInstructions }} />
             </div>
           </div>
         </>}

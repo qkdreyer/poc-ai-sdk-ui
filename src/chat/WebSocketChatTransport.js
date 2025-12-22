@@ -166,7 +166,7 @@ export class WebSocketChatTransport extends EventTarget {
    */
   close() {
     if (this.ws) {
-      this.ws.close()
+      this.ws.close(4401)
       this.ws = null
     }
     this.streamController = null

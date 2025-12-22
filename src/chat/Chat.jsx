@@ -56,12 +56,7 @@ export const Chat = ({ id, url, token, body }) => {
           setInput('')
         }
       })
-    },
-    []
-  )
 
-  useEffect(
-    () => {
       transport.addEventListener(SubmitMessageEvent.name, async ({ detail }) => {
         // TODO remove when sender is filtered (using generated clientId upon websocket connection)
         if (inputValueRef.current === '') {
@@ -70,13 +65,10 @@ export const Chat = ({ id, url, token, body }) => {
           setInput('')
         }
       })
-    },
-    []
-  )
 
-  useEffect(
-    () => () => {
-      transport.close()
+      return () => {
+        transport.close()
+      }
     },
     [transport]
   )

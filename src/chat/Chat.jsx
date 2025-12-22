@@ -74,6 +74,13 @@ export const Chat = ({ id, url, token, body }) => {
     []
   )
 
+  useEffect(
+    () => () => {
+      transport.close()
+    },
+    [transport]
+  )
+
   // useEffect(() => {
   //   scrollToBottom()
   // }, [messages])

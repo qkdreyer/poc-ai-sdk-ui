@@ -32,7 +32,7 @@ const useSubModel = () => {
   return [value, handleChange]
 }
 
-const useSupvInstruction = () => {
+const useSupvInstructions = () => {
   const [value, setValue] = useState(localStorage.getItem('supvInstructions') || `Tu es **Supervisor**, un Agent IA de niveau orchestration.
 Ton domaine : diagnostiquer les pannes sur une plateforme RMM (Remote Monitoring & Management) : disque plein, CPU à 100 %, machine lente, etc.
 Tu disposes des mêmes outils que les sub-agents (observation de métriques, requêtes système, recherches web, etc.) **et** du droit de lancer d'autres agents IA ("sub_agents").
@@ -139,7 +139,7 @@ const Root = () => {
   const [token, handleTokenChange] = useToken()
   const [supvModel, handleSupvModelChange] = useSupvModel()
   const [subModel, handleSubModelChange] = useSubModel()
-  const [supvInstruction, handleSupvInstructionChange] = useSupvInstruction()
+  const [supvInstructions, handleSupvInstructionsChange] = useSupvInstructions()
   const [subInstructions, handleSubInstructionsChange] = useSubInstructions()
   const [conversation, setConversation] = useState()
   const [conversations, mutate] = useAPI('/api/conversation')
@@ -196,11 +196,11 @@ const Root = () => {
               </select>
             </div>
             <div style={{ display: 'flex', padding: 12, gap: 8 }}>
-              <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supvInstruction} onChange={handleSupvInstructionChange} style={{ width: '100%' }}/>
+              <textarea resize="horizontal" rows="8" data-form-type="other" name="supervisor-agent-prompt" placeholder="Supervisor agent prompt" value={supvInstructions} onChange={handleSupvInstructionsChange} style={{ width: '100%' }}/>
               <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subInstructions} onChange={handleSubInstructionsChange} style={{ width: '100%' }}/>
             </div>
             <div style={{ padding: 8 }}>
-              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ supvModel, subModel, supvInstruction, subInstructions }} />
+              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ supvModel, subModel, supvInstructions, subInstructions }} />
             </div>
           </div>
         </>}

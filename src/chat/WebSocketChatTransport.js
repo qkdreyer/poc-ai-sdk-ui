@@ -4,6 +4,12 @@ export class InitMessagesEvent extends CustomEvent {
   }
 }
 
+export class NameEvent extends CustomEvent {
+  constructor (detail) {
+    super(NameEvent.name, { detail })
+  }
+}
+
 export class SubmitMessageEvent extends CustomEvent {
   constructor (detail) {
     super(SubmitMessageEvent.name, { detail })
@@ -57,11 +63,19 @@ export class WebSocketChatTransport extends EventTarget {
             this.dispatchEvent(new InitMessagesEvent(data))
             return
           }
+          if (trigger === 'name') {
+            this.dispatchEvent(new NameEvent(data.name))
+            return
+          }
           if (trigger === 'submit-message' && data.message.parts.at(0).type === 'text') {
             this.dispatchEvent(new SubmitMessageEvent(data.message.parts.at(0).text))
             return
           }
-          this.handleMessage(data)
+          if (trigger) {
+            console.error('Unhandled custom trigger', data)
+          } else {
+            this.handleMessage(data)
+          }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err)
         }

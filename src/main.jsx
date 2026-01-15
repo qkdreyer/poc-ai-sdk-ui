@@ -143,6 +143,7 @@ const Root = () => {
   const [subInstructions, handleSubInstructionsChange] = useSubInstructions()
   const [conversation, setConversation] = useState()
   const [conversations, mutate] = useAPI('/api/conversation')
+  const [me] = useAPI('/api/me')
 
   const createConversation = () => callAPI(token, '/api/conversation', { method: 'POST' }).then(() => mutate())
   const deleteConversation = conversationId => () => callAPI(token, `/api/conversation/${conversationId}`, { method: 'DELETE' }).then(() => mutate())
@@ -175,7 +176,7 @@ const Root = () => {
             <button style={{ padding: '0px 8px', marginLeft: 3 }} onClick={deleteConversation(id)}>X</button>
           </div>)}
         </div>
-        {conversation && <>
+        {me && conversation && <>
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ display: 'flex', padding: 12, gap: 8 }}>
               <select value={supvModel} onChange={handleSupvModelChange}>
@@ -200,7 +201,7 @@ const Root = () => {
               <textarea resize="horizontal" rows="8" data-form-type="other" name="sub-agent-prompt" placeholder="Sub-agent prompt" value={subInstructions} onChange={handleSubInstructionsChange} style={{ width: '100%' }}/>
             </div>
             <div style={{ padding: 8 }}>
-              <Chat id={conversation.conversationId} url={conversation.mimicusIp} token={token} body={{ supvModel, subModel, supvInstructions, subInstructions }} />
+              <Chat id={conversation.conversationId} url={conversation.mimicusIp} username={me.data?.userMail} token={token} body={{ supvModel, subModel, supvInstructions, subInstructions }} />
             </div>
           </div>
         </>}

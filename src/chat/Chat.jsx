@@ -11,7 +11,7 @@ const commands = [
   'Give me the disk usage of the agent RY12-K2-Y4',
 ]
 
-export const Chat = ({ id, url, token, body }) => {
+export const Chat = ({ id, url, username, token, body }) => {
   const transport = useMemo(() => new WebSocketChatTransport({ id, url, token }), [id, url, token])
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
@@ -60,8 +60,8 @@ export const Chat = ({ id, url, token, body }) => {
       transport.addEventListener(SubmitMessageEvent.name, async ({ detail }) => {
         // TODO remove when sender is filtered (using generated clientId upon websocket connection)
         if (inputValueRef.current === '') {
-          setInput(detail)
-          await sendMessage({ text: detail }, { metadata: { read: true } })
+          setInput(detail.parts.at(0).text)
+          await sendMessage(detail, { metadata: { read: true } })
           setInput('')
         }
       })
@@ -80,7 +80,7 @@ export const Chat = ({ id, url, token, body }) => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!input.trim()) return
-    await sendMessage({ text: input }, { body, metadata: { send: true } })
+    await sendMessage({ parts: [{ type: 'text', text: input, username }] }, { body, metadata: { send: true } })
     setInput('')
   }
 

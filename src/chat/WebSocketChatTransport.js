@@ -68,7 +68,7 @@ export class WebSocketChatTransport extends EventTarget {
             return
           }
           if (trigger === 'submit-message' && data.message.parts.at(0).type === 'text') {
-            this.dispatchEvent(new SubmitMessageEvent(data.message.parts.at(0).text))
+            this.dispatchEvent(new SubmitMessageEvent(data.message))
             return
           }
           if (trigger) {

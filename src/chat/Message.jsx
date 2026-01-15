@@ -45,7 +45,7 @@ export const Message = ({ message }) => <div className={`message.${message.role}
   borderRadius: 8
 }}>
   <strong style={{ color: message.role === 'user' ? '#0066cc' : '#cc6600' }}>
-    {message.role === 'user' ? '👤 Utilisateur' : '🤖 Assistant'}:
+    {message.role === 'user' ? '👤 Utilisateur' + (message.parts.at(0).username ? ` (${message.parts.at(0).username})` : '') : '🤖 Assistant'}:
   </strong>
   <div style={{ marginTop: 4, whiteSpace: 'pre-line' }}>
     {message.parts.map(render)}

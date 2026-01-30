@@ -25,7 +25,7 @@ export class SubmitMessageEvent extends CustomEvent {
 export class WebSocketChatTransport extends EventTarget {
   constructor({ id, url, token, reconnectDelay = 1000 } = {}) {
     super()
-    this.url = `${url.startsWith('localhost') ? 'ws' : 'wss'}://${url}?id=${id}`
+    this.url = `wss://${url}?id=${id}`
     this.token = token
     this.reconnectDelay = reconnectDelay
     this.ws = null

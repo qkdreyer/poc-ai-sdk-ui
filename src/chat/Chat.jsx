@@ -24,15 +24,15 @@ export const Chat = ({ id, url, username, token, body }) => {
 
   const { messages, setMessages, status, error, stop, sendMessage, addToolResult, resumeStream } = useChat({
     transport,
-    sendAutomaticallyWhen: ({ messages }) => {
-      const sendAutomaticallyWhen = lastAssistantMessageIsCompleteWithToolCalls({ messages })
-      // setup hack hiding previous parts within same user message
-      if (sendAutomaticallyWhen) {
-        messages.at(-1)._parts = messages.at(-1).parts
-        messages.at(-1).parts = []
-      }
-      return sendAutomaticallyWhen
-    },
+    // sendAutomaticallyWhen: ({ messages }) => {
+    //   const sendAutomaticallyWhen = lastAssistantMessageIsCompleteWithToolCalls({ messages })
+    //   // setup hack hiding previous parts within same user message
+    //   if (sendAutomaticallyWhen) {
+    //     messages.at(-1)._parts = messages.at(-1).parts
+    //     messages.at(-1).parts = []
+    //   }
+    //   return sendAutomaticallyWhen
+    // },
     id,
     async onToolCall({ toolCall }) {
       console.log('🔧 toolCall', toolCall, toolCall.dynamic)
@@ -108,7 +108,12 @@ export const Chat = ({ id, url, username, token, body }) => {
           data-form-type="other"
         />
         <button type="submit" disabled={status !== 'ready'}>Envoyer</button>
-        {status === 'streaming' && <button type="button" onClick={stop}>Stop</button>}
+        {status === 'streaming' && <button type="button" onClick={() => fetch(`${import.meta.env.VITE_API_BASE}/api/conversation/${id}/stop`, {
+          method: 'POST',
+          headers: {
+            Authorization: token
+          }
+        })}>Stop</button>}
         {status === 'error' && <button type="button" onClick={resumeStream}>Reprendre</button>}
       </form>
 
